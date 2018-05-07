@@ -26,6 +26,15 @@ class PhotoApi extends Controller
     {
     }
 
+    //TODO move this to a service, use the db to generate it, whatever. Don't copy-paste it everywhere.
+    private static function uuid() {
+      $data = openssl_random_pseudo_bytes(16);
+      $data[6] = chr(ord($data[6]) & 0x0f | 0x40);
+      $data[8] = chr(ord($data[8]) & 0x3f | 0x80);
+
+       return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
+    }
+
     /**
      * Operation addPhoto
      *
@@ -42,13 +51,14 @@ class PhotoApi extends Controller
 
 
         //not path params validation
-        if (!isset($input['body'])) {
-            throw new \InvalidArgumentException('Missing the required parameter $body when calling addPhoto');
+        if (!isset($input['gallery_uuid'])) {
+            throw new \InvalidArgumentException('Missing the required parameter $gallery when calling addPhoto');
         }
-        $body = $input['body'];
+        $uuid = PhotoApi::uuid();
 
+        app('db')->insert('insert into photos (gallery_uuid, uuid, width, height, uploaded_at, taken_at, image_url) values (?, ?, null, null, now(), ?, null)',[$input['gallery_uuid'], $uuid, empty($input['taken_at'])?null:$input['taken_at']]);
 
-        return response('How about implementing addPhoto as a post method ?');
+        return response(json_encode(['uuid'=>$uuid]));
     }
     /**
      * Operation photoFindByAlbumUUIDGet
@@ -71,8 +81,9 @@ class PhotoApi extends Controller
         }
         $album_uuid = $input['album_uuid'];
 
+        $result = app('db')->select('select * from photos where id in (select photo_id from albums_photos_cf where album_id in (select id from albums where uuid=?))', [$album_uuid]);
+        return response(json_encode($result));
 
-        return response('How about implementing photoFindByAlbumUUIDGet as a get method ?');
     }
     /**
      * Operation findPhotosByGallery
@@ -95,8 +106,8 @@ class PhotoApi extends Controller
         }
         $gallery_uuid = $input['gallery_uuid'];
 
-
-        return response('How about implementing findPhotosByGallery as a get method ?');
+        $result = app('db')->select('select * from photos where gallery_id in (select id from galleries where uuid=?)', [$gallery_uuid]);
+        return response(json_encode($result));
     }
     /**
      * Operation deletePhoto
@@ -115,8 +126,9 @@ class PhotoApi extends Controller
 
 
         //not path params validation
-
-        return response('How about implementing deletePhoto as a delete method ?');
+        app('db')->table('photos')->where('uuid', '=', $album_uuid)->delete();
+        
+        return response('operation successful');
     }
     /**
      * Operation getPhotoByUUID
@@ -135,8 +147,9 @@ class PhotoApi extends Controller
 
 
         //not path params validation
+        $result = app('db')->select('select * from photos where uuid=?', [$photo_uuid]);
 
-        return response('How about implementing getPhotoByUUID as a get method ?');
+        return response(json_encode($result));
     }
     /**
      * Operation updatePhoto
@@ -155,8 +168,11 @@ class PhotoApi extends Controller
 
 
         //not path params validation
+        if (!empty($input['taken_at'])) {
+          app('db')->update('update photos set taken_at=? where uuid=?', [$input['taken_at'], $photo_uuid]);
+        }
 
-        return response('How about implementing updatePhoto as a put method ?');
+        return response('operation successful');
     }
     /**
      * Operation uploadFile
@@ -170,70 +186,24 @@ class PhotoApi extends Controller
     public function uploadFile($photo_uuid)
     {
         $input = Request::all();
-
         //path params validation
-
-
         //not path params validation
 
-        return response('How about implementing uploadFile as a post method ?');
+        if (!Request::hasFile('file') || !Request::file('file')->isValid()) {
+          return response(json_encode(['code'=>123, 'type'=>'creation error', 'message'=>'unable to create image']), 400);
+        }
+
+        $file = Request::file('file');
+        $file_specs = getimagesize($file->getRealPath());
+        ob_start();
+        var_dump($file_specs);
+        file_put_contents('/tmp/photo.log', ob_get_contents());
+        ob_end_clean();
+
+        //TODO: move the file somewhere reasonable, upload it to a CDN, etc.
+        app('db')->update('update photos set image_url=?,width=?,height=? where uuid=?', ['http://google.com/', $file_specs[0], $file_specs[1], $photo_uuid]);
+
+        return response('operation successful');
     }
-    /**
-     * Operation photoAlbumDelete
-     *
-     * Remove a photo from an album.
-     *
-     *
-     * @return Http response
-     */
-    public function photoAlbumDelete()
-    {
-        $input = Request::all();
 
-        //path params validation
-
-
-        //not path params validation
-        if (!isset($input['photo_uuid'])) {
-            throw new \InvalidArgumentException('Missing the required parameter $photo_uuid when calling photoAlbumDelete');
-        }
-        $photo_uuid = $input['photo_uuid'];
-
-        if (!isset($input['album_uuid'])) {
-            throw new \InvalidArgumentException('Missing the required parameter $album_uuid when calling photoAlbumDelete');
-        }
-        $album_uuid = $input['album_uuid'];
-
-
-        return response('How about implementing photoAlbumDelete as a delete method ?');
-    }
-    /**
-     * Operation photoAlbumPost
-     *
-     * Add a photo entry to an album.
-     *
-     *
-     * @return Http response
-     */
-    public function photoAlbumPost()
-    {
-        $input = Request::all();
-
-        //path params validation
-
-
-        //not path params validation
-        if (!isset($input['photo_uuid'])) {
-            throw new \InvalidArgumentException('Missing the required parameter $photo_uuid when calling photoAlbumPost');
-        }
-        $photo_uuid = $input['photo_uuid'];
-
-        if (!isset($input['album_uuid'])) {
-            throw new \InvalidArgumentException('Missing the required parameter $album_uuid when calling photoAlbumPost');
-        }
-        $album_uuid = $input['album_uuid'];
-
-
-        return response('How about implementing photoAlbumPost as a post method ?');
-    }
 }

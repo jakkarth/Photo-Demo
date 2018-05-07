@@ -26,6 +26,15 @@ class GalleryApi extends Controller
     {
     }
 
+    //TODO move this to a service, use the db to generate it, whatever. Don't copy-paste it everywhere.
+    private static function uuid() {
+      $data = openssl_random_pseudo_bytes(16);
+      $data[6] = chr(ord($data[6]) & 0x0f | 0x40);
+      $data[8] = chr(ord($data[8]) & 0x3f | 0x80);
+
+       return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
+    }
+
     /**
      * Operation addGallery
      *
@@ -40,15 +49,16 @@ class GalleryApi extends Controller
 
         //path params validation
 
-
         //not path params validation
-        if (!isset($input['body'])) {
-            throw new \InvalidArgumentException('Missing the required parameter $body when calling addGallery');
+        if (!isset($input['name'])) {
+            throw new \InvalidArgumentException('Missing the required parameter $name when calling addGallery');
         }
-        $body = $input['body'];
 
+        $uuid = GalleryApi::uuid();
 
-        return response('How about implementing addGallery as a post method ?');
+        $result = app('db')->table('galleries')->insert(['uuid'=>$uuid, 'name'=>$input['name']]);
+
+        return response(json_encode(['uuid'=>$uuid, 'name'=>$input['name']]));
     }
     /**
      * Operation deleteGallery
@@ -67,7 +77,10 @@ class GalleryApi extends Controller
 
 
         //not path params validation
-
-        return response('How about implementing deleteGallery as a delete method ?');
+        $result = app('db')->table('galleries')->where('uuid', '=', $gallery_uuid)->delete();
+        if (!$result) {
+          return response(json_encode(['code'=>404, 'type'=>'missing gallery', 'message'=>'gallery not found']), 404);
+        }
+        return response('operation successful');
     }
 }

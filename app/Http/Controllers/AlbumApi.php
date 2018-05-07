@@ -26,6 +26,15 @@ class AlbumApi extends Controller
     {
     }
 
+    //TODO move this to a service, use the db to generate it, whatever. Don't copy-paste it everywhere.
+    private static function uuid() {
+      $data = openssl_random_pseudo_bytes(16);
+      $data[6] = chr(ord($data[6]) & 0x0f | 0x40);
+      $data[8] = chr(ord($data[8]) & 0x3f | 0x80);
+
+       return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
+    }
+
     /**
      * Operation addAlbum
      *
@@ -42,13 +51,21 @@ class AlbumApi extends Controller
 
 
         //not path params validation
-        if (!isset($input['body'])) {
-            throw new \InvalidArgumentException('Missing the required parameter $body when calling addAlbum');
+        if (empty($input['gallery_uuid'])) {
+            throw new \InvalidArgumentException('Missing the required parameter $gallery_uuid when calling addAlbum');
         }
-        $body = $input['body'];
+        if (empty($input['name'])) {
+            throw new \InvalidArgumentException('Missing the required parameter $name when calling addAlbum');
+        }
 
+        $album_uuid = AlbumApi::uuid();
 
-        return response('How about implementing addAlbum as a post method ?');
+        $result = app('db')->insert('insert into albums (uuid, gallery_uuid, name) select ?, uuid, ? from galleries where galleries.uuid=?', [$uuid, $input['name'], $input['gallery_uuid']]);
+        if (!$result) {
+          return response(json_encode(['code'=>123, 'type'=>'creation error', 'message'=>'unable to create album']), 400);
+        }
+        
+        return response(json_encode(['uuid'=>$uuid, 'name'=>$input['name']]));
     }
     /**
      * Operation albumAlbumUUIDPut
@@ -64,11 +81,12 @@ class AlbumApi extends Controller
         $input = Request::all();
 
         //path params validation
+        app('db')->update('update albums set name=? where uuid=?', [$input['name'], $album_uuid]);
 
 
         //not path params validation
 
-        return response('How about implementing albumAlbumUUIDPut as a put method ?');
+        return response('operation successful');
     }
     /**
      * Operation deleteAlbum
@@ -84,14 +102,16 @@ class AlbumApi extends Controller
         $input = Request::all();
 
         //path params validation
-
+        app('db')->table('albums')->where('uuid', '=', $album_uuid)->delete();
 
         //not path params validation
 
-        return response('How about implementing deleteAlbum as a delete method ?');
+        return response('operation successful');
     }
     /**
      * Operation galleryGalleryUUIDPut
+     *
+     * TODO: move this to the GalleryApi class. How did it even get here??
      *
      * Update an existing gallery's description.
      *
@@ -107,8 +127,9 @@ class AlbumApi extends Controller
 
 
         //not path params validation
-
-        return response('How about implementing galleryGalleryUUIDPut as a put method ?');
+        app('db')->update('update galleries set name=? where uuid=?', [$input['name'], $gallery_uuid]);
+        
+        return response('operation successful');
     }
     /**
      * Operation photoAlbumDelete
@@ -136,8 +157,10 @@ class AlbumApi extends Controller
         }
         $album_uuid = $input['album_uuid'];
 
+        app('db')->delete('delete from albums_photos_cf where album_id in (select id from albums where uuid=?) and photo_id in (select id from photos where uuid=?)', [$album_uuid, $photo_uuid]);
 
-        return response('How about implementing photoAlbumDelete as a delete method ?');
+
+        return response('operation successful');
     }
     /**
      * Operation photoAlbumPost
@@ -165,7 +188,10 @@ class AlbumApi extends Controller
         }
         $album_uuid = $input['album_uuid'];
 
+        //a cross join isn't pretty, but it works
+        app('db')->insert('insert into albums_photos_cf (album_id, photo_id) select a.id, p.id from albums a join photos p where a.uuid=? and p.uuid=?', [$album_uuid, $photo_uuid]);
 
-        return response('How about implementing photoAlbumPost as a post method ?');
+
+        return response('operation successful');
     }
 }
