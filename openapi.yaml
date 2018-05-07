@@ -1,0 +1,631 @@
+swagger: "2.0"
+info:
+  description: "This is documentation for a simple photo upload and management web application."
+  version: "1.0.0"
+  title: "ShootProof API"
+  contact:
+    email: "john@johnplaxco.com"
+    name: "John Plaxco"
+  license:
+    name: "Apache 2.0"
+    url: "http://www.apache.org/licenses/LICENSE-2.0.html"
+host: "shootproof.johnplaxco.com"
+basePath: "/v1"
+tags:
+- name: "photo"
+  description: "Everything about your Photos"
+- name: "album"
+  description: "Group photos in a gallery into Albums"
+- name: "gallery"
+  description: "Photos are uploaded to Galleries and then grouped into Albums"
+schemes:
+- "https"
+paths:
+  /photo:
+    post:
+      tags:
+      - "photo"
+      summary: "Add a new photo entry to a gallery"
+      description: ""
+      operationId: "addPhoto"
+      consumes:
+      - "application/json"
+      - "application/xml"
+      produces:
+      - "application/xml"
+      - "application/json"
+      parameters:
+      - in: "body"
+        name: "body"
+        description: "Photo object that needs to be added to the gallery"
+        required: true
+        schema:
+          $ref: "#/definitions/Photo"
+      responses:
+        200:
+          description: "Photo entry created successfully"
+          schema:
+            $ref: "#/definitions/Photo"
+        405:
+          description: "Invalid input"
+          schema:
+            $ref: "#/definitions/ApiResponse"
+      security:
+      - gallery_auth:
+        - "write:photos"
+        - "read:photos"
+    
+  /photo/findByGalleryUUID:
+    get:
+      tags:
+      - "photo"
+      summary: "Finds photos by gallery"
+      operationId: "findPhotosByGallery"
+      produces:
+      - "application/xml"
+      - "application/json"
+      parameters:
+      - name: "gallery_uuid"
+        in: "query"
+        description: "UUID of the gallery to find the photos"
+        required: true
+        type: "string"
+        format: "uuid"
+      responses:
+        200:
+          description: "successful operation, may return 0 or more photos"
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/Photo"
+        404:
+          description: "Gallery not found"
+          schema:
+            $ref: "#/definitions/ApiResponse"
+      security:
+      - gallery_auth:
+        - "write:photos"
+        - "read:photos"
+        
+  /photo/findByAlbumUUID:
+    get:
+      tags:
+      - "photo"
+      summary: "Find photos by album"
+      produces:
+      - "application/xml"
+      - "application/json"
+      parameters:
+      - name: "album_uuid"
+        in: "query"
+        description: "UUID of the album to find the photos"
+        required: true
+        type: "string"
+        format: "uuid"
+      responses:
+        200:
+          description: "successful operation, may return 0 or more photos"
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/Photo"
+        404:
+          description: "Album not found"
+          schema:
+            $ref: "#/definitions/ApiResponse"
+          
+  /photo_album:
+    post:
+      tags:
+      - "photo"
+      - "album"
+      summary: "Add a photo entry to an album"
+      produces:
+      - "application/xml"
+      - "application/json"
+      parameters:
+      - name: "photo_uuid"
+        in: "query"
+        description: "UUID of the photo to add to the album"
+        required: true
+        type: "string"
+        format: "uuid"
+      - name: "album_uuid"
+        in: "query"
+        description: "UUID of the album to add the photo to"
+        required: true
+        type: "string"
+        format: "uuid"
+      responses:
+        200:
+          description: "successful operation"
+          schema:
+            $ref: "#/definitions/ApiResponse"
+        400:
+          description: "Invalid input formats, or photo already added to album"
+          schema:
+            $ref: "#/definitions/ApiResponse"
+        404:
+          description: "Photo or album not found"
+          schema:
+            $ref: "#/definitions/ApiResponse"
+    delete:
+      tags:
+      - "photo"
+      - "album"
+      summary: "Remove a photo from an album"
+      produces:
+      - "application/xml"
+      - "application/json"
+      parameters:
+      - name: "photo_uuid"
+        in: "query"
+        description: "UUID of the photo to remove from the album"
+        required: true
+        type: "string"
+        format: "uuid"
+      - name: "album_uuid"
+        in: "query"
+        description: "UUID of the album to remove the photo from"
+        required: true
+        type: "string"
+        format: "uuid"
+      responses:
+        200:
+          description: "successful operation"
+          schema:
+            $ref: "#/definitions/ApiResponse"
+        404:
+          description: "Photo or album not found, or photo not found within album"
+          schema:
+            $ref: "#/definitions/ApiResponse"
+
+  /photo/{photoUUID}:
+    get:
+      tags:
+      - "photo"
+      summary: "Find photo by ID"
+      description: "Returns a single photo's metadata"
+      operationId: "getPhotoByUUID"
+      produces:
+      - "application/xml"
+      - "application/json"
+      parameters:
+      - name: "photoUUID"
+        in: "path"
+        description: "UUID of photo to return"
+        required: true
+        type: "string"
+        format: "uuid"
+      responses:
+        200:
+          description: "successful operation"
+          schema:
+            $ref: "#/definitions/Photo"
+        400:
+          description: "Invalid ID supplied"
+          schema:
+            $ref: "#/definitions/ApiResponse"
+        404:
+          description: "Photo not found"
+          schema:
+            $ref: "#/definitions/ApiResponse"
+      security:
+      - api_key: []
+    put:
+      tags:
+      - "photo"
+      summary: "Update an existing photo"
+      description: ""
+      operationId: "updatePhoto"
+      consumes:
+      - "application/json"
+      - "application/xml"
+      produces:
+      - "application/xml"
+      - "application/json"
+      parameters:
+      - in: "path"
+        name: "photoUUID"
+        description: "The UUID of the photo entry to update"
+        required: true
+        type: "string"
+        format: "uuid"
+      - in: "body"
+        name: "body"
+        description: "Photo object that needs to be updated in the gallery"
+        required: true
+        schema:
+          $ref: "#/definitions/Photo"
+      responses:
+        200:
+          description: "Photo entry updated successfully"
+          schema:
+            $ref: "#/definitions/Photo"
+        400:
+          description: "Invalid ID supplied"
+          schema:
+            $ref: "#/definitions/ApiResponse"
+        404:
+          description: "Photo not found"
+          schema:
+            $ref: "#/definitions/ApiResponse"
+        405:
+          description: "Validation exception"
+          schema:
+            $ref: "#/definitions/ApiResponse"
+      security:
+      - gallery_auth:
+        - "write:photos"
+        - "read:photos"
+    delete:
+      tags:
+      - "photo"
+      summary: "Deletes a photo entry and its associated image."
+      description: ""
+      operationId: "deletePhoto"
+      produces:
+      - "application/xml"
+      - "application/json"
+      parameters:
+      - name: "photoUUID"
+        in: "path"
+        description: "Photo uuid to delete"
+        required: true
+        type: "string"
+        format: "uuid"
+      responses:
+        200:
+          description: "operation successful"
+          schema:
+            $ref: "#/definitions/ApiResponse"
+        400:
+          description: "Invalid ID supplied"
+          schema:
+            $ref: "#/definitions/ApiResponse"
+        404:
+          description: "Photo not found"
+          schema:
+            $ref: "#/definitions/ApiResponse"
+      security:
+      - gallery_auth:
+        - "write:photos"
+        - "read:photos"
+  /photo/{photoUUID}/uploadImage:
+    post:
+      tags:
+      - "photo"
+      summary: "Uploads an image"
+      description: ""
+      operationId: "uploadFile"
+      consumes:
+      - "multipart/form-data"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "photoUUID"
+        in: "path"
+        description: "ID of photo entry to update"
+        required: true
+        type: "string"
+        format: "uuid"
+      - name: "file"
+        in: "formData"
+        description: "file to upload"
+        required: true
+        type: "file"
+      responses:
+        200:
+          description: "successful operation"
+          schema:
+            $ref: "#/definitions/ApiResponse"
+        400:
+          description: "problem with file upload"
+          schema:
+            $ref: "#/definitions/ApiResponse"
+      security:
+      - gallery_auth:
+        - "write:photos"
+        - "read:photos"
+        
+  /album:
+    post:
+      tags:
+      - "album"
+      summary: "Creates a new album in the gallery"
+      description: ""
+      operationId: "addAlbum"
+      consumes:
+      - "application/json"
+      - "application/xml"
+      produces:
+      - "application/xml"
+      - "application/json"
+      parameters:
+      - in: "body"
+        name: "body"
+        description: "Album object that needs to be added to the gallery"
+        required: true
+        schema:
+          $ref: "#/definitions/Album"
+      responses:
+        200:
+          description: "Album created successfully"
+          schema:
+            $ref: "#/definitions/Album"
+        400:
+          description: "Invalid input"
+          schema:
+            $ref: "#/definitions/ApiResponse"
+      security:
+      - gallery_auth:
+        - "write:photos"
+        - "read:photos"
+  /album/{albumUUID}:
+    put:
+      tags:
+      - "album"
+      summary: "Update an existing album's description"
+      description: ""
+      consumes:
+      - "application/json"
+      - "application/xml"
+      produces:
+      - "application/xml"
+      - "application/json"
+      parameters:
+      - in: "path"
+        name: "albumUUID"
+        required: true
+        type: "string"
+        format: "uuid"
+      - in: "body"
+        name: "body"
+        description: "Album object that needs to be updated"
+        required: true
+        schema:
+          $ref: "#/definitions/Album"
+      responses:
+        200:
+          description: "Album updated successfully"
+          schema:
+            $ref: "#/definitions/Album"
+        404:
+          description: "Album not found"
+          schema:
+            $ref: "#/definitions/ApiResponse"
+        400:
+          description: "Invalid input"
+          schema:
+            $ref: "#/definitions/ApiResponse"
+      security:
+      - gallery_auth:
+        - "write:photos"
+        - "read:photos"
+    delete:
+      tags:
+      - "album"
+      summary: "Deletes an album."
+      description: ""
+      operationId: "deleteAlbum"
+      produces:
+      - "application/xml"
+      - "application/json"
+      parameters:
+      - name: "albumUUID"
+        in: "path"
+        description: "Album UUID to delete"
+        required: true
+        type: "string"
+        format: "uuid"
+      responses:
+        200:
+          description: "operation successful"
+          schema:
+            $ref: "#/definitions/ApiResponse"
+        400:
+          description: "Invalid ID supplied"
+          schema:
+            $ref: "#/definitions/ApiResponse"
+        404:
+          description: "Album not found"
+          schema:
+            $ref: "#/definitions/ApiResponse"
+      security:
+      - gallery_auth:
+        - "write:photos"
+        - "read:photos"
+ 
+  /gallery:
+    post:
+      tags:
+      - "gallery"
+      summary: "Creates a new gallery"
+      description: ""
+      operationId: "addGallery"
+      consumes:
+      - "application/json"
+      - "application/xml"
+      produces:
+      - "application/xml"
+      - "application/json"
+      parameters:
+      - in: "body"
+        name: "body"
+        description: "A new gallery"
+        required: true
+        schema:
+          $ref: "#/definitions/Gallery"
+      responses:
+        200:
+          description: "Gallery created successfully"
+          schema:
+            $ref: "#/definitions/Gallery"
+        400:
+          description: "Invalid input"
+          schema:
+            $ref: "#/definitions/ApiResponse"
+      security:
+      - gallery_auth:
+        - "write:photos"
+        - "read:photos"
+  /gallery/{galleryUUID}:
+    put:
+      tags:
+      - "album"
+      summary: "Update an existing gallery's description"
+      description: ""
+      consumes:
+      - "application/json"
+      - "application/xml"
+      produces:
+      - "application/xml"
+      - "application/json"
+      parameters:
+      - in: "path"
+        name: "galleryUUID"
+        required: true
+        type: "string"
+        format: "uuid"
+      - in: "body"
+        name: "body"
+        description: "Gallery object that needs to be updated"
+        required: true
+        schema:
+          $ref: "#/definitions/Gallery"
+      responses:
+        200:
+          description: "Gallery updated successfully"
+          schema:
+            $ref: "#/definitions/Gallery"
+        404:
+          description: "Gallery not found"
+          schema:
+            $ref: "#/definitions/ApiResponse"
+        400:
+          description: "Invalid input"
+          schema:
+            $ref: "#/definitions/ApiResponse"
+      security:
+      - gallery_auth:
+        - "write:photos"
+        - "read:photos"
+    delete:
+      tags:
+      - "gallery"
+      summary: "Deletes a gallery."
+      description: ""
+      operationId: "deleteGallery"
+      produces:
+      - "application/xml"
+      - "application/json"
+      parameters:
+      - name: "galleryUUID"
+        in: "path"
+        description: "Gallery UUID to delete"
+        required: true
+        type: "string"
+        format: "uuid"
+      responses:
+        200:
+          description: "operation successful"
+          schema:
+            $ref: "#/definitions/ApiResponse"
+        400:
+          description: "Invalid ID supplied"
+          schema:
+            $ref: "#/definitions/ApiResponse"
+        404:
+          description: "Gallery not found"
+          schema:
+            $ref: "#/definitions/ApiResponse"
+      security:
+      - gallery_auth:
+        - "write:photos"
+        - "read:photos"
+        
+securityDefinitions:
+  gallery_auth:
+    type: "oauth2"
+    authorizationUrl: "http://shootproof.johnplaxco.com/oauth/dialog"
+    flow: "implicit"
+    scopes:
+      write:photos: "modify photos and albums in your gallery"
+      read:photos: "retrieve photos and albums from your gallery"
+  api_key:
+    type: "apiKey"
+    name: "api_key"
+    in: "header"
+definitions:
+  Photo:
+    type: "object"
+    required:
+    - "gallery_uuid"
+    properties:
+      gallery_uuid:
+        type: "string"
+        format: "uuid"
+      uuid:
+        type: "string"
+        format: "uuid"
+      albumUUIDs:
+        type: "array"
+        xml:
+          name: "uuid"
+          wrapped: true
+        items:
+          type: "string"
+      width:
+        type: "integer"
+        format: "int64"
+      height:
+        type: "integer"
+        format: "int64"
+      uploaded_at:
+        type: "string"
+        format: "date-time"
+      taken_at:
+        type: "string"
+        format: "date-time"
+      image_url:
+        type: "string"
+        format: "url"
+    xml:
+      name: "Photo"
+  Album:
+    type: "object"
+    required:
+    - "gallery_uuid"
+    properties:
+      gallery_uuid:
+        type: "string"
+        format: "uuid"
+      uuid:
+        type: "string"
+        format: "uuid"
+      name:
+        type: "string"
+        example: "My trip to Hawaii"
+    xml:
+      name: "Album"
+  Gallery:
+    type: "object"
+    properties:
+      uuid:
+        type: "string"
+        format: "uuid"
+      name:
+        type: "string"
+        example: "John Plaxco's Photos"
+
+    
+  ApiResponse:
+    type: "object"
+    properties:
+      code:
+        type: "integer"
+        format: "int32"
+      type:
+        type: "string"
+      message:
+        type: "string"
